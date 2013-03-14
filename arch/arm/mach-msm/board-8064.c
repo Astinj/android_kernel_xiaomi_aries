@@ -628,6 +628,7 @@ static void __init apq8064_reserve(void)
 	apq8064_set_display_params(prim_panel_name, ext_panel_name,
 		ext_resolution);
 	msm_reserve();
+	msm_add_persistent_ram();
 }
 
 static void __init apq8064_early_reserve(void)
@@ -3708,6 +3709,7 @@ static void __init apq8064_common_init(void)
 	msm_spm_l2_init(msm_spm_l2_data);
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	apq8064_epm_adc_init();
+	msm_add_ramconsole_devices();
 }
 
 static void __init apq8064_allocate_memory_regions(void)

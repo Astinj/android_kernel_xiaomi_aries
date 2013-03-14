@@ -27,6 +27,32 @@
 #include <linux/msm_ssbi.h>
 #include <mach/msm_bus.h>
 
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+#define MSM_PERSISTENT_RAM_SIZE	(SZ_1M)
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+#define MSM_RAM_CONSOLE_SIZE	(124*SZ_1K * 2)
+#endif
+
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+void __init msm_add_persistent_ram(void);
+#else
+static inline void __init msm_add_persistent_ram(void)
+{
+	/* empty */
+}
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+void __init msm_add_ramconsole_devices(void);
+#else
+static inline void __init msm_add_ramconsole_devices(void)
+{
+	/* empty */
+}
+#endif
+
 struct msm_camera_io_ext {
 	uint32_t mdcphy;
 	uint32_t mdcsz;
