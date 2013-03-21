@@ -3710,6 +3710,7 @@ static void __init apq8064_common_init(void)
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	apq8064_epm_adc_init();
 	msm_add_ramconsole_devices();
+	apq8064_add_backlight_devices();
 }
 
 static void __init apq8064_allocate_memory_regions(void)

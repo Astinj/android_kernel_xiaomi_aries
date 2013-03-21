@@ -13,8 +13,10 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/led-lm3530.h>
 #include <linux/bootmem.h>
 #include <linux/msm_ion.h>
 #include <asm/mach-types.h>
@@ -1107,4 +1109,54 @@ void __init apq8064_set_display_params(char *prim_panel, char *ext_panel,
 
 	msm_fb_pdata.ext_resolution = resolution;
 	hdmi_msm_data.is_mhl_enabled = mhl_display_enabled;
+}
+
+static struct lm3530_platform_data lm3530_data = {
+	.mode = LM3530_BL_MODE_MANUAL,
+	.als_input_mode = LM3530_INPUT_AVRG,
+	.max_current = LM3530_FS_CURR_22mA,
+	.pwm_pol_hi = false,
+	.als_avrg_time = LM3530_ALS_AVRG_TIME_32ms,
+	.brt_ramp_law = 1,
+	.brt_ramp_fall = LM3530_RAMP_TIME_1ms,
+	.brt_ramp_rise = LM3530_RAMP_TIME_1ms,
+	.gpio = 164,
+	.disable_regulator = true,
+};
+
+static struct i2c_board_info __initdata apq8064_i2c_backlight_info[] = {
+	{
+		/* Backlight */
+		I2C_BOARD_INFO("lm3530-led", 0x38),
+		.platform_data = &lm3530_data,
+	},
+};
+
+#define I2C_FFA  (1 << 1)
+struct i2c_registry {
+	u8                     machs;
+	int                    bus;
+	struct i2c_board_info *info;
+	int                    len;
+};
+
+static struct i2c_registry apq8064_i2c_backlight_device[] __initdata = {
+	{
+		I2C_FFA,
+		APQ_8064_GSBI1_QUP_I2C_BUS_ID,
+		apq8064_i2c_backlight_info,
+		ARRAY_SIZE(apq8064_i2c_backlight_info),
+	},
+};
+
+void __init apq8064_add_backlight_devices(void)
+{
+	int i;
+
+	/* Run the array and install devices as appropriate */
+	for (i = 0; i < ARRAY_SIZE(apq8064_i2c_backlight_device); ++i) {
+		i2c_register_board_info(apq8064_i2c_backlight_device[i].bus,
+					apq8064_i2c_backlight_device[i].info,
+					apq8064_i2c_backlight_device[i].len);
+	}
 }
