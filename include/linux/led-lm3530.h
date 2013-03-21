@@ -116,6 +116,9 @@ struct lm3530_platform_data {
 	u8 brt_val;
 
 	struct lm3530_pwm_data pwm_data;
+
+	u32 gpio;
+	bool disable_regulator;
 };
 
 #endif	/* _LINUX_LED_LM3530_H__ */

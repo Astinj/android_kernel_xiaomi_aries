@@ -19,8 +19,9 @@
 #include <linux/types.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
+#include <linux/gpio.h>
 
-#define LM3530_LED_DEV "lcd-backlight"
+#define LM3530_LED_DEV "lm3530-backlight"
 #define LM3530_NAME "lm3530-led"
 
 #define LM3530_GEN_CONFIG		0x10
@@ -130,6 +131,14 @@ static const u8 lm3530_reg[LM3530_REG_MAX] = {
 	LM3530_ALS_Z4T_REG,
 };
 
+static void lm3530_gpio_en(int enable, struct lm3530_data *drvdata)
+{
+	if (gpio_is_valid(drvdata->pdata->gpio)) {
+		printk("%s %d\n", __func__, enable);
+		gpio_direction_output(drvdata->pdata->gpio, enable);
+	}
+}
+
 static int lm3530_get_mode_from_str(const char *str)
 {
 	int i;
@@ -230,13 +239,16 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	reg_val[13] = LM3530_DEF_ZT_4;	/* LM3530_ALS_Z4T_REG */
 
 	if (!drvdata->enable) {
-		ret = regulator_enable(drvdata->regulator);
-		if (ret) {
-			dev_err(&drvdata->client->dev,
-					"Enable regulator failed\n");
-			return ret;
+		if(!pdata->disable_regulator) {
+			ret = regulator_enable(drvdata->regulator);
+			if (ret) {
+				dev_err(&drvdata->client->dev,
+						"Enable regulator failed\n");
+				return ret;
+			}
 		}
 		drvdata->enable = true;
+		lm3530_gpio_en(1, drvdata);
 	}
 
 	for (i = 0; i < LM3530_REG_MAX; i++) {
@@ -290,11 +302,14 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 			drvdata->brightness = brt_val;
 
 		if (brt_val == 0) {
-			err = regulator_disable(drvdata->regulator);
-			if (err)
-				dev_err(&drvdata->client->dev,
-					"Disable regulator failed\n");
+			if(!pdata->disable_regulator) {
+				err = regulator_disable(drvdata->regulator);
+				if (err)
+					dev_err(&drvdata->client->dev,
+						"Disable regulator failed\n");
+			}
 			drvdata->enable = false;
+			lm3530_gpio_en(0, drvdata);
 		}
 		break;
 	case LM3530_BL_MODE_ALS:
@@ -404,12 +419,18 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, drvdata);
 
-	drvdata->regulator = regulator_get(&client->dev, "vin");
-	if (IS_ERR(drvdata->regulator)) {
-		dev_err(&client->dev, "regulator get failed\n");
-		err = PTR_ERR(drvdata->regulator);
+	if(!pdata->disable_regulator) {
+		drvdata->regulator = regulator_get(&client->dev, "vin");
+		if (IS_ERR(drvdata->regulator)) {
+			dev_err(&client->dev, "regulator get failed\n");
+			err = PTR_ERR(drvdata->regulator);
+			drvdata->regulator = NULL;
+			goto err_regulator_get;
+		}
+	}
+	else {
+		printk("%s: no regulator used by lm3530 on this board", __func__);
 		drvdata->regulator = NULL;
-		goto err_regulator_get;
 	}
 
 	if (drvdata->pdata->brt_val) {
@@ -435,13 +456,25 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 		goto err_create_file;
 	}
 
+	if (gpio_is_valid(pdata->gpio)) {
+		err = gpio_request(pdata->gpio, "lm3530 enable");
+		if (err < 0) {
+			dev_err(&client->dev, "Enable GPIO %d request failed: %d\n", pdata->gpio, err);
+			goto err_gpio_request;
+		}
+	}
+
 	return 0;
 
+err_gpio_request:
+	if (gpio_is_valid(pdata->gpio))
+		gpio_free(pdata->gpio);
 err_create_file:
 	led_classdev_unregister(&drvdata->led_dev);
 err_class_register:
 err_reg_init:
-	regulator_put(drvdata->regulator);
+	if(!pdata->disable_regulator)
+		regulator_put(drvdata->regulator);
 err_regulator_get:
 	kfree(drvdata);
 err_out:
@@ -454,9 +487,15 @@ static int __devexit lm3530_remove(struct i2c_client *client)
 
 	device_remove_file(drvdata->led_dev.dev, &dev_attr_mode);
 
-	if (drvdata->enable)
-		regulator_disable(drvdata->regulator);
-	regulator_put(drvdata->regulator);
+	if(!drvdata->pdata->disable_regulator) {
+		if (drvdata->enable)
+			regulator_disable(drvdata->regulator);
+		regulator_put(drvdata->regulator);
+	}
+
+	if (gpio_is_valid(drvdata->pdata->gpio))
+		gpio_free(drvdata->pdata->gpio);
+
 	led_classdev_unregister(&drvdata->led_dev);
 	kfree(drvdata);
 	return 0;
