@@ -83,6 +83,8 @@
 /* 7 bits are used for the brightness : LM3530_BRT_CTRL_REG */
 #define MAX_BRIGHTNESS			(127)
 
+static struct led_classdev *lm3530_led_cdev;
+
 struct lm3530_mode_map {
 	const char *mode;
 	enum lm3530_mode mode_val;
@@ -323,6 +325,12 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	}
 }
 
+void lm3530_set_backlight_brightness(enum led_brightness brt_val)
+{
+	lm3530_brightness_set(lm3530_led_cdev, brt_val);
+}
+EXPORT_SYMBOL(lm3530_set_backlight_brightness);
+
 static ssize_t lm3530_mode_get(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -463,6 +471,8 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 			goto err_gpio_request;
 		}
 	}
+
+	lm3530_led_cdev = &drvdata->led_dev;
 
 	return 0;
 
