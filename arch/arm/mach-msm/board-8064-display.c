@@ -349,8 +349,8 @@ static struct platform_device wfd_device = {
 static bool dsi_power_on;
 static int mipi_dsi_panel_power(int on)
 {
-	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_ext_3p3v;
-	static int gpio36, gpio25, gpio26, mpp3;
+	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_l23, *reg_ext_3p3v, *reg_ext_5p4v;
+	static int gpio12, gpio36, gpio25, gpio26, mpp3;
 	int rc;
 
 	pr_debug("%s: on=%d\n", __func__, on);
@@ -388,6 +388,36 @@ static int mipi_dsi_panel_power(int on)
 		if (rc) {
 				pr_err("set_voltage l11 failed, rc=%d\n", rc);
 				return -EINVAL;
+		}
+
+		if (machine_is_apq8064_mtp()) {
+			reg_l23 = regulator_get(&msm_mipi_dsi1_device.dev,
+							"dsi_mi_vddio");
+			if (IS_ERR_OR_NULL(reg_l23)) {
+				pr_err("could not get 8921_l23, rc = %ld\n",
+					PTR_ERR(reg_l23));
+				return -ENODEV;
+			}
+			rc = regulator_set_voltage(reg_l23, 1800000, 1800000);
+			if (rc) {
+				pr_err("set_voltage l23 failed, rc=%d\n", rc);
+				return -EINVAL;
+			}
+
+			reg_ext_5p4v = regulator_get(&msm_mipi_dsi1_device.dev,
+				"dsi_mi_vsp");
+			if (IS_ERR_OR_NULL(reg_ext_5p4v)) {
+				pr_err("could not get VSP/VSN regulator, rc = %ld\n",
+					PTR_ERR(reg_ext_5p4v));
+				return -ENODEV;
+			}
+
+			gpio12 = PM8921_GPIO_PM_TO_SYS(12);
+			rc = gpio_request(gpio12, "disp_id_det");
+			if (rc) {
+				pr_err("request gpio 12 failed, rc=%d\n", rc);
+				return -ENODEV;
+			}
 		}
 
 		if (machine_is_apq8064_liquid()) {
@@ -460,6 +490,23 @@ static int mipi_dsi_panel_power(int on)
 			return -ENODEV;
 		}
 
+		if (machine_is_apq8064_mtp()) {
+			rc = regulator_enable(reg_l23);
+			if (rc) {
+				pr_err("enable l23 failed, rc=%d", rc);
+				return -ENODEV;
+			}
+
+			rc = regulator_enable(reg_ext_5p4v);
+			if (rc) {
+				pr_err("enable vsp failed, rc=%d", rc);
+				return -ENODEV;
+			}
+
+			rc = gpio_get_value(gpio12);
+			printk("lcd id %d\n", rc);
+		}
+
 		if (machine_is_apq8064_liquid()) {
 			rc = regulator_enable(reg_ext_3p3v);
 			if (rc) {
@@ -479,6 +526,20 @@ static int mipi_dsi_panel_power(int on)
 			gpio_set_value_cansleep(gpio26, 0);
 		gpio_set_value_cansleep(gpio25, 0);
 		gpio_set_value_cansleep(gpio36, 1);
+
+		if (machine_is_apq8064_mtp()) {
+			rc = regulator_disable(reg_ext_5p4v);
+			if (rc) {
+				pr_err("disable reg_vsp failed, rc=%d\n", rc);
+				return -ENODEV;
+			}
+
+			rc = regulator_disable(reg_l23);
+			if (rc) {
+				pr_err("disable reg_l23 failed, rc=%d\n", rc);
+				return -ENODEV;
+			}
+		}
 
 		if (machine_is_apq8064_liquid()) {
 			gpio_set_value_cansleep(mpp3, 0);
