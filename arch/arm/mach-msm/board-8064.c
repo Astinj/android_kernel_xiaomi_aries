@@ -3017,8 +3017,8 @@ static int ethernet_init(void)
 #endif
 
 #define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
-#define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
-#define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(38)
+#define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(1)
+#define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(2)
 #define GPIO_KEY_VOLUME_DOWN_PM8917	PM8921_GPIO_PM_TO_SYS(30)
 #define GPIO_KEY_CAM_FOCUS		PM8921_GPIO_PM_TO_SYS(3)
 #define GPIO_KEY_CAM_SNAP		PM8921_GPIO_PM_TO_SYS(4)
@@ -3128,7 +3128,7 @@ static struct gpio_keys_button mtp_keys[] = {
 		.code           = KEY_VOLUMEUP,
 		.gpio           = GPIO_KEY_VOLUME_UP,
 		.desc           = "volume_up_key",
-		.active_low     = 1,
+		.active_low     = 0,
 		.type		= EV_KEY,
 		.wakeup		= 1,
 		.debounce_interval = 15,
@@ -3137,7 +3137,7 @@ static struct gpio_keys_button mtp_keys[] = {
 		.code           = KEY_VOLUMEDOWN,
 		.gpio           = GPIO_KEY_VOLUME_DOWN_PM8921,
 		.desc           = "volume_down_key",
-		.active_low     = 1,
+		.active_low     = 0,
 		.type		= EV_KEY,
 		.wakeup		= 1,
 		.debounce_interval = 15,
