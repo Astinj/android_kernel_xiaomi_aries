@@ -181,6 +181,53 @@ static char config_Panel_IF_Ctrl_10b_cmd_off[3] = {0x4C, 0x00, 0x02};
 
 static char config_Power_Ctrl_1a_cmd[3] = {0x4C, 0x30, 0x00};
 
+static char mcap_start[2] = {0xb0, 0x04};
+static char config_C0C16870_num2[33] = {0xca, 0x01, 0x80, 0x88, 0x8c, 0xbc, 0x8c, 0x8c, 0x8c, 0x18, 0x3f, 0x14, 0xff, 0x0a, 0x4a, 0x37, 0xa0, 0x55, 0xf8, 0x0c, 0x0c, 0x20, 0x10, 0x3f, 0x3f, 0x00, 0x00, 0x10, 0x10, 0x3f, 0x3f, 0x3f, 0x3f};
+static char mcap_end[2] = {0xb0, 0x03};
+static char config_C0C16870_num4[3] = {0x51, 0x0e, 0xff};
+static char config_C0C16870_num5[2] = {0x53, 0x2c};
+static char config_C0C16870_num6[2] = {0x55, 0x01};
+static char config_C0C16870_num7[5] = {0x2a, 0x00, 0x00, 0x02, 0xcf};
+static char config_C0C16870_num8[5] = {0x2b, 0x00, 0x00, 0x04, 0xff};
+static char config_C0C16870_num10[2] = {0x3a, 0x77};
+static char display_on[2] = {0x29, 0x00};
+static char display_off[2] = {0x28, 0x00};
+static char enter_sleep[2] = {0x10, 0x00};
+
+static struct dsi_cmd_desc renesas_hitachi_display_off_cmds[] = {
+       {DTYPE_DCS_WRITE, 1, 0, 0, 20,
+               sizeof(display_off), display_off},
+       {DTYPE_DCS_WRITE, 1, 0, 0, 20,
+               sizeof(enter_sleep), enter_sleep},
+};
+
+static struct dsi_cmd_desc renesas_hitachi_display_on_cmds[] = {
+	{DTYPE_DCS_WRITE, 1, 0, 0, 120,
+		sizeof(config_sleep_out), config_sleep_out},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(mcap_start), mcap_start},
+	{DTYPE_GEN_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num2), config_C0C16870_num2},
+	{DTYPE_GEN_WRITE2, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(mcap_end), mcap_end},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num4), config_C0C16870_num4},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num5), config_C0C16870_num5},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num6), config_C0C16870_num6},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num7), config_C0C16870_num7},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 20,
+		sizeof(config_C0C16870_num8), config_C0C16870_num8},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 20,
+		sizeof(config_MADCTL), config_MADCTL},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, RENESAS_CMD_DELAY,
+		sizeof(config_C0C16870_num10), config_C0C16870_num10},
+	{DTYPE_DCS_WRITE, 1, 0, 0, 20,
+		sizeof(display_on), display_on},
+};
+
 static struct dsi_cmd_desc renesas_sleep_off_cmds[] = {
 	{DTYPE_DCS_WRITE, 1, 0, 0, RENESAS_SLEEP_OFF_DELAY,
 		sizeof(config_sleep_out), config_sleep_out }
@@ -1142,12 +1189,21 @@ static int mipi_renesas_lcd_on(struct platform_device *pdev)
 
 	mipi_set_tx_power_mode(1);
 
-	cmdreq.cmds = renesas_display_on_cmds;
-	cmdreq.cmds_cnt = ARRAY_SIZE(renesas_display_on_cmds);
-	cmdreq.flags = CMD_REQ_COMMIT;
-	cmdreq.rlen = 0;
-	cmdreq.cb = NULL;
-	mipi_dsi_cmdlist_put(&cmdreq);
+	if (machine_is_apq8064_mtp()) {
+		cmdreq.cmds = renesas_hitachi_display_on_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(renesas_hitachi_display_on_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
+	} else {
+		cmdreq.cmds = renesas_display_on_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(renesas_display_on_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
+	}
 
 	if (cpu_is_msm7x25a() || cpu_is_msm7x25aa() || cpu_is_msm7x25ab()) {
 		cmdreq.cmds = renesas_hvga_on_cmds;
@@ -1191,12 +1247,22 @@ static int mipi_renesas_lcd_off(struct platform_device *pdev)
 		return -EINVAL;
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
-	cmdreq.cmds = renesas_display_off_cmds;
-	cmdreq.cmds_cnt = ARRAY_SIZE(renesas_display_off_cmds);
-	cmdreq.flags = CMD_REQ_COMMIT;
-	cmdreq.rlen = 0;
-	cmdreq.cb = NULL;
-	mipi_dsi_cmdlist_put(&cmdreq);
+
+	if (machine_is_apq8064_mtp()) {
+		cmdreq.cmds = renesas_hitachi_display_off_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(renesas_hitachi_display_off_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
+	} else {
+		cmdreq.cmds = renesas_display_off_cmds;
+		cmdreq.cmds_cnt = ARRAY_SIZE(renesas_display_off_cmds);
+		cmdreq.flags = CMD_REQ_COMMIT;
+		cmdreq.rlen = 0;
+		cmdreq.cb = NULL;
+		mipi_dsi_cmdlist_put(&cmdreq);
+	}
 
 	return 0;
 }
