@@ -32,9 +32,9 @@
 #include <linux/platform_device.h>
 #include <linux/mhl_8334.h>
 
-#include "msm_fb.h"
-#include "external_common.h"
-#include "hdmi_msm.h"
+#include "../msm_fb.h"
+#include "../external_common.h"
+#include "../hdmi_msm.h"
 #include "mhl_i2c_utils.h"
 
 #define MSC_START_BIT_MSC_CMD		        (0x01 << 0)
